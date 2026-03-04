@@ -11,12 +11,13 @@ import FunnelStep from "@/components/FunnelStep";
 import PIIForm from "@/components/PIIForm";
 import CTCOutcome from "@/components/CTCOutcome";
 import DisqualifiedOutcome from "@/components/DisqualifiedOutcome";
+import StartPage from "@/components/StartPage";
 
-type Phase = "questions" | "pii" | "processing" | "outcome";
+type Phase = "start" | "questions" | "pii" | "processing" | "outcome";
 
 export default function Funnel() {
   const [stepIndex, setStepIndex] = useState(0);
-  const [phase, setPhase] = useState<Phase>("questions");
+  const [phase, setPhase] = useState<Phase>("start");
   const [, setDisqualCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
@@ -32,9 +33,17 @@ export default function Funnel() {
     trackFunnelLoaded(params);
   }, []);
 
+  const handleStartAnswer = useCallback((answer: "yes" | "no") => {
+    addToDlContext("PPR_age_40_plus", answer === "yes" ? "Yes" : "No");
+    trackCustomEvent("start_answer", { answer });
+    setPhase("questions");
+  }, []);
+
   // Track page views
   useEffect(() => {
-    if (phase === "questions") {
+    if (phase === "start") {
+      trackPageViewed("start_page", 0, FUNNEL_STEPS.length + 2);
+    } else if (phase === "questions") {
       const step = FUNNEL_STEPS[stepIndex];
       if (step) trackPageViewed(step.id, stepIndex, FUNNEL_STEPS.length);
     } else if (phase === "pii") {
@@ -120,6 +129,11 @@ export default function Funnel() {
     setSubmitting(false);
     setPhase("outcome");
   }, []);
+
+  // Start page is full-screen, no chrome
+  if (phase === "start") {
+    return <StartPage onAnswer={handleStartAnswer} />;
+  }
 
   const totalSteps = FUNNEL_STEPS.length + 1; // questions + PII
   const currentStep = phase === "questions" ? stepIndex + 1 : FUNNEL_STEPS.length + 1;
